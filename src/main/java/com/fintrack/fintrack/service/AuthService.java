@@ -3,7 +3,9 @@ package com.fintrack.fintrack.service;
 import com.fintrack.fintrack.dto.AuthResponse;
 import com.fintrack.fintrack.dto.LoginRequest;
 import com.fintrack.fintrack.dto.RegisterRequest;
+import com.fintrack.fintrack.entity.Category;
 import com.fintrack.fintrack.entity.User;
+import com.fintrack.fintrack.repository.CategoryRepository;
 import com.fintrack.fintrack.repository.UserRepository;
 import com.fintrack.fintrack.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -12,11 +14,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
@@ -32,6 +37,14 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        DEFAULT_CATEGORIES.forEach(name ->
+                categoryRepository.save(
+                        Category.builder()
+                                .name(name)
+                                .user(user)
+                                .build()
+                )
+        );
 
         String token = jwtUtils.generateToken(user.getEmail());
         return new AuthResponse(token, user.getEmail());
@@ -48,4 +61,10 @@ public class AuthService {
         String token = jwtUtils.generateToken(user.getEmail());
         return new AuthResponse(token, user.getEmail());
     }
+
+    private static final List<String> DEFAULT_CATEGORIES = List.of(
+        "Groceries", "Restaurants", "Transport", "Subscriptions",
+        "Health", "Shopping", "Rent & Utilities", "Entertainment",
+        "Donations", "University", "Transfers", "Other"
+    );
 }

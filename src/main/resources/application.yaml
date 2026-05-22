@@ -1,4 +1,6 @@
 spring:
+  main:
+    web-application-type: servlet
   application:
     name: fintrack
 
@@ -27,9 +29,9 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
+  expiration: 900000
   refresh-expiration: 604800000
 
 gemini:
   api-key: ${GEMINI_API_KEY}
-  model: gemini-2.0-flash
+  model: gemini-2.5-flash

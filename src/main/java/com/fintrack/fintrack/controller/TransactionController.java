@@ -3,6 +3,7 @@ package com.fintrack.fintrack.controller;
 import com.fintrack.fintrack.dto.TransactionResponse;
 import com.fintrack.fintrack.dto.UpdateCategoryRequest;
 import com.fintrack.fintrack.service.TransactionService;
+import com.fintrack.fintrack.service.GeminiClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,6 +18,7 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final GeminiClient geminiClient;
 
     @GetMapping
     public ResponseEntity<List<TransactionResponse>> getTransactions(
@@ -40,5 +42,13 @@ public class TransactionController {
                 transactionService.updateCategory(
                         userDetails.getUsername(), id, request)
         );
+    }
+
+    @GetMapping("/test-gemini")
+    public ResponseEntity<String> testGemini() {
+        String response = geminiClient.generateContent(
+                "Say 'FinTrack Gemini connection successful' and nothing else."
+        );
+        return ResponseEntity.ok(response);
     }
 }

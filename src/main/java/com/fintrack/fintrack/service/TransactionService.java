@@ -87,7 +87,6 @@ public class TransactionService {
                 .description(transaction.getDescription())
                 .counterpart(transaction.getCounterpart())
                 .amount(transaction.getAmount())
-                .type(transaction.getType().name())
                 .transactionDate(transaction.getTransactionDate())
                 .categoryName(transaction.getCategory() != null
                     ? transaction.getCategory().getName() :null)

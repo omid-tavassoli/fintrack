@@ -43,10 +43,6 @@ public class Transaction {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
-    @Column(nullable = false, length = 10)
-    @Enumerated(EnumType.STRING)
-    private TransactionType type;
-
     @Column(nullable = false, unique = true, length = 64)
     private String hash;
 

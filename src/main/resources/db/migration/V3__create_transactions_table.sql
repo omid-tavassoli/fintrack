@@ -6,7 +6,6 @@ CREATE TABLE transactions (
     description     VARCHAR(500),
     counterpart     VARCHAR(255),
     transaction_date DATE NOT NULL,
-    type            VARCHAR(10) NOT NULL CHECK (type IN ('DEBIT', 'CREDIT')),
     hash            VARCHAR(64) NOT NULL UNIQUE,
     is_anomaly      BOOLEAN NOT NULL DEFAULT FALSE,
     gemini_used     BOOLEAN NOT NULL DEFAULT FALSE,

@@ -17,7 +17,6 @@ public class TransactionResponse {
     private String description;
     private String counterpart;
     private BigDecimal amount;
-    private String type;
     private LocalDate transactionDate;
     private String categoryName;
     private Long categoryId;

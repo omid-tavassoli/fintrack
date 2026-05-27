@@ -4,6 +4,7 @@ import com.fintrack.fintrack.dto.IngestionSummary;
 import com.fintrack.fintrack.dto.ParsedTransaction;
 import com.fintrack.fintrack.dto.TransactionResponse;
 import com.fintrack.fintrack.dto.UpdateCategoryRequest;
+import com.fintrack.fintrack.service.GeminiPdfExtractor;
 import com.fintrack.fintrack.service.PdfIngestionService;
 import com.fintrack.fintrack.service.TransactionService;
 import com.fintrack.fintrack.service.GeminiClient;
@@ -25,6 +26,7 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final PdfIngestionService pdfIngestionService;
+    private final GeminiPdfExtractor extractor;
 //    private final GeminiClient geminiClient;
 
     @GetMapping
@@ -61,14 +63,14 @@ public class TransactionController {
         );
     }
 
-//    @PostMapping(value = "/test-extract",
-//            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    public ResponseEntity<List<ParsedTransaction>> testExtract(
-//            @AuthenticationPrincipal UserDetails userDetails,
-//            @RequestParam("file") MultipartFile file) throws IOException {
-//        List<ParsedTransaction> transactions = extractor.extract(file.getBytes());
-//        return ResponseEntity.ok(transactions);
-//    }
+    @PostMapping(value = "/test-extract",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<ParsedTransaction>> testExtract(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        List<ParsedTransaction> transactions = extractor.extract(file.getBytes());
+        return ResponseEntity.ok(transactions);
+    }
 
 
 //    @GetMapping("/test-gemini")

@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Service
 @Slf4j
@@ -42,16 +43,18 @@ public class GeminiClient {
                 )
         );
 
-        String response = webClient.post()
-                .uri(GEMINI_URL, model)
-                .header("x-goog-api-key", apiKey)
-                .header("content-type", "application/json")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        return executeWithRetry(() -> {
+            String response = webClient.post()
+                    .uri(GEMINI_URL, model)
+                    .header("x-goog-api-key", apiKey)
+                    .header("content-type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
 
-        return extractText(response);
+            return extractText(response);
+        });
     }
 
     public String generateContentWithPdf(String prompt, byte[] pdfBytes) {
@@ -71,16 +74,18 @@ public class GeminiClient {
                 )
         );
 
-        String response = webClient.post()
-                .uri(GEMINI_URL, model)
-                .header("x-goog-api-key", apiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        return executeWithRetry( ()-> {
+            String response = webClient.post()
+                    .uri(GEMINI_URL, model)
+                    .header("x-goog-api-key", apiKey)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
 
-        return extractText(response);
+            return extractText(response);
+        });
     }
 
     private String extractText(String rawResponse) {
@@ -97,6 +102,25 @@ public class GeminiClient {
             log.error("Failed to parse Gemini response: {}", rawResponse);
             throw new RuntimeException("Gemini response parsing failed");
         }
+    }
+
+    private String executeWithRetry(Supplier<String> apiCall) {
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return apiCall.get();
+            } catch (Exception e) {
+                if (attempt == maxRetries) throw e;
+                try {
+                    Thread.sleep(2000L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted during retry");
+                }
+                log.warn("Gemini attempt {} failed, retrying...", attempt);
+            }
+        }
+        throw new RuntimeException("Gemini unavailable after retries");
     }
 
 }

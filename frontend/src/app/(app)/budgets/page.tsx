@@ -3,17 +3,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-const DEMO_BUDGETS = [
-  { categoryName: 'Groceries',     budgetAmount: 250, spentAmount: 187, percentageUsed: 74.8, status: 'GREEN' },
-  { categoryName: 'Restaurants',   budgetAmount: 60,  spentAmount: 73,  percentageUsed: 121.7, status: 'RED'  },
-  { categoryName: 'Subscriptions', budgetAmount: 150, spentAmount: 121, percentageUsed: 80.7, status: 'AMBER' },
-  { categoryName: 'Transport',     budgetAmount: 100, spentAmount: 34,  percentageUsed: 34.0, status: 'GREEN' },
-  { categoryName: 'Entertainment', budgetAmount: 80,  spentAmount: 56,  percentageUsed: 70.0, status: 'AMBER' },
-]
-
-const DEMO_CATEGORIES = ['Groceries', 'Restaurants', 'Subscriptions', 'Transport', 'Entertainment', 'Health', 'Shopping']
-
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Budget {
   categoryName: string
@@ -23,61 +12,82 @@ interface Budget {
   status: 'GREEN' | 'AMBER' | 'RED'
 }
 
+interface Category { id: number; name: string }
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const BAR_COLOR  = { GREEN: 'bg-green-500', AMBER: 'bg-amber-400', RED: 'bg-red-400' }
 const TEXT_COLOR = { GREEN: 'text-green-400', AMBER: 'text-amber-400', RED: 'text-red-400' }
 
-const currentMonth = new Date().toISOString().slice(0, 7) // "2026-06"
+const currentMonth = new Date().toISOString().slice(0, 7)
 const currentMonthLabel = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function BudgetsPage() {
-  const [budgets, setBudgets] = useState<Budget[]>([])
-  const [categories, setCategories] = useState<string[]>(DEMO_CATEGORIES)
-  const [formCategory, setFormCategory] = useState(DEMO_CATEGORIES[0])
-  const [formLimit, setFormLimit] = useState('')
-  const [formMonth, setFormMonth] = useState(currentMonth)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [budgets, setBudgets]         = useState<Budget[]>([])
+  const [categories, setCategories]   = useState<Category[]>([])
+  const [formCategory, setFormCategory] = useState('')
+  const [formLimit, setFormLimit]     = useState('')
+  const [formMonth, setFormMonth]     = useState(currentMonth)
+  const [saving, setSaving]           = useState(false)
+  const [saved, setSaved]             = useState(false)
+  const [saveError, setSaveError]     = useState('')
+  const [loading, setLoading]         = useState(true)
 
-  useEffect(() => {
-    const isDemo = localStorage.getItem('isDemo') === 'true'
-
-    if (isDemo) {
-      setBudgets(DEMO_BUDGETS as Budget[])
-      return
+useEffect(() => {
+  async function load() {
+    try {
+      const catsRes = await api.get('/api/categories')
+      setCategories(catsRes.data)
+      setFormCategory(catsRes.data[0]?.name ?? '')
+    } catch (err) {
+      console.error('Failed to load categories:', err)
     }
 
-    // API CALL: GET /api/analytics/budget
-    //   → BudgetStatusDTO[] { categoryName, budgetAmount, spentAmount, percentageUsed, status: "GREEN"|"AMBER"|"RED" }
-    //   setBudgets(data)
-
-    // API CALL: GET /api/categories
-    //   → CategoryResponse[] { id, name }
-    //   setCategories(data.map(c => c.name))
-    //   setFormCategory(data[0]?.name ?? '')
-  }, [])
+    try {
+      const budgetsRes = await api.get('/api/analytics/budgets')
+      setBudgets(budgetsRes.data)
+    } catch {
+      // no budgets yet — that's fine, show empty state
+      setBudgets([])
+    } finally {
+      setLoading(false)
+    }
+  }
+  load()
+}, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!formLimit) return
+    if (!formLimit || !formCategory) return
+
     setSaving(true)
+    setSaveError('')
+
     try {
-      // API CALL: POST /api/budgets (endpoint needs to be created in backend)
-      //   → body: { categoryName: formCategory, amount: parseFloat(formLimit), month: formMonth }
-      //   On success: refetch budgets via GET /api/analytics/budget
       await api.post('/api/budgets', {
         categoryName: formCategory,
         amount: parseFloat(formLimit),
         month: formMonth,
       })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+
+      // refetch budgets to show updated state
+      const res = await api.get('/api/analytics/budgets')
+      setBudgets(res.data)
+
       setFormLimit('')
-    } catch {
-      // Backend endpoint may not exist yet — see comment above
+      setFormMonth(currentMonth)
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      setTimeout(() => setSaved(false), 2500)
+
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string; error?: string } } })
+              .response?.data?.message ??
+            (err as { response?: { data?: { message?: string; error?: string } } })
+              .response?.data?.error
+          : undefined
+      setSaveError(msg || 'Failed to save budget. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -88,19 +98,25 @@ export default function BudgetsPage() {
 
       {/* Header */}
       <div className="grid gap-1">
-        <h1 className="text-4xl font-black tracking-tight text-white md:text-4xl lg:text-4xl">Budgets</h1>
+        <h1 className="text-4xl font-black tracking-tight text-white">Budgets</h1>
         <p className="text-gray-500 font-mono text-sm">// {currentMonthLabel} · monthly limits</p>
       </div>
 
-      {/* Two-column layout — stacked on mobile, side by side on desktop */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[3fr_2fr]">
 
         {/* Current month progress */}
         <div className="grid gap-5 bg-[#111] rounded-2xl border border-[#2a2a2a] p-5 lg:p-6">
           <span className="text-gray-600 font-mono text-xs uppercase tracking-widest">Current Month</span>
 
-          {budgets.length === 0 ? (
-            <p className="text-gray-600 font-mono text-sm">No budgets set yet.</p>
+          {loading ? (
+            <p className="text-gray-600 font-mono text-sm">Loading...</p>
+          ) : budgets.length === 0 ? (
+            <div className="grid gap-2">
+              <p className="text-gray-600 font-mono text-sm">No budgets set yet.</p>
+              <p className="text-gray-700 font-mono text-xs">
+                Set a budget for a category using the form on the right.
+              </p>
+            </div>
           ) : (
             <div className="grid gap-5">
               {budgets.map(b => (
@@ -108,16 +124,27 @@ export default function BudgetsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-white text-sm font-medium">{b.categoryName}</span>
                     <span className="font-mono text-sm">
-                      <span className={TEXT_COLOR[b.status]}>€{b.spentAmount}</span>
-                      <span className="text-gray-600"> / €{b.budgetAmount}</span>
+                      <span className={TEXT_COLOR[b.status]}>
+                        €{b.spentAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-gray-600">
+                        {' '}/ €{b.budgetAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                      </span>
                     </span>
                   </div>
-                  {/* Progress bar */}
                   <div className="h-1.5 bg-[#1e1e1e] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ${BAR_COLOR[b.status]}`}
                       style={{ width: `${Math.min(b.percentageUsed, 100)}%` }}
                     />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className={`font-mono text-xs ${TEXT_COLOR[b.status]}`}>
+                      {b.percentageUsed.toFixed(1)}% used
+                    </span>
+                    {b.status === 'RED' && (
+                      <span className="text-red-400 font-mono text-xs">over budget</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -132,20 +159,25 @@ export default function BudgetsPage() {
           <form onSubmit={handleSubmit} className="grid gap-4">
 
             <div className="grid gap-2">
-              <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">Category</label>
+              <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">
+                Category
+              </label>
               <select
                 value={formCategory}
                 onChange={e => setFormCategory(e.target.value)}
-                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-green-700 transition-all appearance-none cursor-pointer"
+                disabled={categories.length === 0}
+                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-green-700 transition-all appearance-none cursor-pointer disabled:opacity-50"
               >
                 {categories.map(c => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
               </select>
             </div>
 
             <div className="grid gap-2">
-              <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">Monthly Limit (€)</label>
+              <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">
+                Monthly Limit (€)
+              </label>
               <input
                 type="number"
                 min="1"
@@ -159,7 +191,9 @@ export default function BudgetsPage() {
             </div>
 
             <div className="grid gap-2">
-              <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">Month</label>
+              <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">
+                Month
+              </label>
               <input
                 type="month"
                 value={formMonth}
@@ -169,9 +203,13 @@ export default function BudgetsPage() {
               />
             </div>
 
+            {saveError && (
+              <p className="text-red-400 font-mono text-xs">{saveError}</p>
+            )}
+
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || categories.length === 0}
               className="w-full py-3.5 rounded-full bg-green-500 text-black font-semibold text-base hover:bg-green-400 active:bg-green-600 transition-colors disabled:opacity-50 mt-1"
             >
               {saved ? '✓ Saved' : saving ? 'Saving...' : 'Set Budget'}

@@ -1,39 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import api from '@/lib/api'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, LabelList,
-  PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
+  LineChart, Line,
+  PieChart, Pie, Cell, ReferenceLine,
 } from 'recharts'
-
-// ── Mock data (used when isDemo=true in localStorage) ─────────────────────────
-const DEMO_MONTHLY = [
-  { month: 'Dec', amount: 1200 },
-  { month: 'Jan', amount: 980  },
-  { month: 'Feb', amount: 1400 },
-  { month: 'Mar', amount: 1100 },
-  { month: 'Apr', amount: 1700 },
-  { month: 'May', amount: 1847 },
-]
-
-const DEMO_CATEGORIES = [
-  { name: 'Rent',          value: 554, pct: 30 },
-  { name: 'Groceries',     value: 369, pct: 20 },
-  { name: 'Subscriptions', value: 277, pct: 15 },
-  { name: 'Restaurants',   value: 185, pct: 10 },
-  { name: 'Transport',     value: 148, pct:  8 },
-]
-
-const DEMO_ANOMALIES = [
-  { transactionId: 1, description: 'Restaurant Hani — Frankfurt', amount: -41.00,  reason: '4.2x above average for Restaurants (avg: €12.50)' },
-  { transactionId: 2, description: 'ZARA Frankfurt Börsenstraße',  amount: -30.10,  reason: '3.1x above average for Shopping (avg: €18.20)'   },
-  { transactionId: 3, description: 'Techniker Krankenkasse',       amount: -144.24, reason: '2.8x above average for Health (avg: €52.00)'     },
-]
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface MonthlyPoint   { month: string; amount: number }
 interface CategoryPoint  { name: string; value: number; pct: number }
 interface AnomalyItem    { transactionId: number; description: string; amount: number; reason: string }
+interface DailyPoint     { day: string; income: number; spend: number; net: number; netPos: number | null; netNeg: number | null }
+interface RawTx          { amount: number; transactionDate: string }
 interface DashboardData  {
   totalSpent: number
   income: number
@@ -41,9 +21,12 @@ interface DashboardData  {
   aiAccuracy: number
   txCount: number
   currentMonth: string
+  latestMonth: string
   monthly: MonthlyPoint[]
   categories: CategoryPoint[]
   anomalies: AnomalyItem[]
+  availableMonths: string[]
+  allTx: RawTx[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -69,6 +52,22 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
   )
 }
 
+interface TooltipProps { active?: boolean; payload?: { payload: DailyPoint }[]; label?: string }
+function CashFlowTooltip({ active, payload, label }: TooltipProps) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 font-mono text-xs grid gap-1.5 shadow-xl">
+      <p className="text-gray-500 mb-0.5">Day {label}</p>
+      <p className="text-green-400">Income  <span className="ml-2 text-white">{fmtEuro(d.income)}</span></p>
+      <p className="text-red-400">Spend   <span className="ml-2 text-white">{fmtEuro(d.spend)}</span></p>
+      <p className={`border-t border-[#2a2a2a] pt-1.5 mt-0.5 font-semibold ${d.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        Net     <span className="ml-2 text-white">{d.net >= 0 ? '+' : ''}{fmtEuro(d.net)}</span>
+      </p>
+    </div>
+  )
+}
+
 function WarnIcon() {
   return (
     <svg width="16" height="15" viewBox="0 0 16 15" fill="none">
@@ -84,44 +83,112 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
 
   useEffect(() => {
-    const isDemo = localStorage.getItem('isDemo') === 'true'
+    async function fetchDashboard() {
+  const [monthlyRes, anomaliesRes, txRes] = await Promise.all([
+    api.get('/api/analytics/monthly'),
+    api.get('/api/analytics/anomalies'),
+    api.get('/api/transactions'),
+  ])
 
-    if (isDemo) {
-      setData({
-        totalSpent:   1847,
-        income:       1248,
-        anomalyCount: DEMO_ANOMALIES.length,
-        aiAccuracy:   98.4,
-        txCount:      127,
-        currentMonth: 'May 2026',
-        monthly:      DEMO_MONTHLY,
-        categories:   DEMO_CATEGORIES,
-        anomalies:    DEMO_ANOMALIES,
-      })
-      return
-    }
+  const monthlyData = monthlyRes.data as { month: string; total: number }[]
 
-    // ── Wire up when ready ─────────────────────────────────────────────────────
-    // All endpoints need Bearer token — auto-attached by src/lib/api.ts
+  // use the most recent month with actual data, not today's date
+  const latestMonth = monthlyData.length > 0 ? monthlyData[0].month : new Date().toISOString().slice(0, 7)
 
-    // API CALL: GET /api/analytics/monthly
-    //   → MonthlySpendingDTO[] { month: "YYYY-MM", total: number, byCategory: Record<string,number> }
-    //   Map: last 6 entries, format "YYYY-MM" → "Jan" for X axis, use `total` as `amount`
+  const categoriesRes = await api.get(`/api/analytics/categories?month=${latestMonth}`)
 
-    // API CALL: GET /api/analytics/categories?month=YYYY-MM   (current month, e.g. "2026-06")
-    //   → Record<string, number>
-    //   Map: entries → CategoryPoint[], compute pct = (value / totalSpent) * 100
+  const monthly: MonthlyPoint[] = monthlyData
+    .slice(0, 6)
+    .reverse()
+    .map((m) => ({
+      month: new Date(m.month + '-01').toLocaleDateString('en-GB', { month: 'short' }),
+      amount: Math.abs(m.total),
+    }))
 
-    // API CALL: GET /api/analytics/anomalies
-    //   → AnomalyDTO[] { transactionId, description, counterpart, amount, date, categoryName, reason }
+  const catData = categoriesRes.data as Record<string, number>
+  const totalSpent = Object.values(catData).reduce((s, v) => s + Math.abs(v), 0)
+  const categories: CategoryPoint[] = Object.entries(catData)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 5)
+    .map(([name, value]) => ({
+      name,
+      value: Math.abs(value),
+      pct: totalSpent > 0 ? Math.round((Math.abs(value) / totalSpent) * 100) : 0,
+    }))
 
-    // API CALL: GET /api/transactions
-    //   → TransactionResponse[] { id, amount, transactionDate, categoryName, isAnomaly, geminiUsed, ... }
-    //   Compute income     = sum of positive amounts for current month
-    //   Compute txCount    = array length
-    //   Compute aiAccuracy = transactions with geminiUsed=true / total * 100  (or categorized/total)
-    //   Compute currentMonth from most recent transactionDate
+  const txList = txRes.data
+  const income = txList
+    .filter((t: { amount: number; transactionDate: string }) =>
+      t.amount > 0 && t.transactionDate.startsWith(latestMonth))
+    .reduce((s: number, t: { amount: number }) => s + t.amount, 0)
+
+  const categorized = txList.filter((t: { categoryName: string }) => t.categoryName).length
+  const aiAccuracy = txList.length > 0
+    ? Math.round((categorized / txList.length) * 100 * 10) / 10
+    : 0
+
+  setData({
+    totalSpent: Math.round(totalSpent),
+    income: Math.round(income),
+    anomalyCount: anomaliesRes.data.length,
+    aiAccuracy,
+    txCount: txList.length,
+    latestMonth,
+    currentMonth: new Date(latestMonth + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+    monthly,
+    categories,
+    anomalies: anomaliesRes.data,
+    availableMonths: monthlyData.map((m: { month: string }) => m.month).sort(),
+    allTx: txList.map((t: { amount: number; transactionDate: string }) => ({
+      amount: t.amount,
+      transactionDate: t.transactionDate,
+    })),
+  })
+}
+
+    fetchDashboard().catch(console.error)
   }, [])
+
+  // ── Cash flow month navigation ───────────────────────────────────────────────
+  const [cashFlowMonth, setCashFlowMonth] = useState('')
+
+  useEffect(() => {
+    if (data?.latestMonth && !cashFlowMonth) setCashFlowMonth(data.latestMonth)
+  }, [data, cashFlowMonth])
+
+  const daily = useMemo((): DailyPoint[] => {
+    if (!data || !cashFlowMonth) return []
+    const dayMap: Record<string, { income: number; expenses: number }> = {}
+    data.allTx.forEach(t => {
+      if (!t.transactionDate.startsWith(cashFlowMonth)) return
+      const day = t.transactionDate.slice(8, 10)
+      if (!dayMap[day]) dayMap[day] = { income: 0, expenses: 0 }
+      if (t.amount > 0) dayMap[day].income += t.amount
+      else              dayMap[day].expenses += t.amount
+    })
+    let cumulative = 0
+    return Object.entries(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, v]) => {
+        const dailyNet = Math.round(v.income + v.expenses)
+        cumulative += dailyNet
+        return {
+          day,
+          income:  Math.round(v.income),
+          spend:   Math.round(Math.abs(v.expenses)),
+          net:     cumulative,
+          netPos: dailyNet >= 0 ? dailyNet : null,
+          netNeg: dailyNet <  0 ? dailyNet : null,
+        }
+      })
+  }, [data, cashFlowMonth])
+
+  const monthIdx        = data?.availableMonths.indexOf(cashFlowMonth) ?? -1
+  const canGoBack       = monthIdx > 0
+  const canGoForward    = data ? monthIdx < data.availableMonths.length - 1 : false
+  const cashFlowLabel   = cashFlowMonth
+    ? new Date(cashFlowMonth + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    : ''
 
   if (!data) {
     return (
@@ -144,8 +211,8 @@ export default function DashboardPage() {
 
       {/* Stats — 2 cols on mobile/tablet, 4 on desktop */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <StatCard label="Total Spent"  value={`€${data.totalSpent.toLocaleString('de-DE')}`} sub="this month"          color="text-red-400"   />
-        <StatCard label="Income"       value={`€${data.income.toLocaleString('de-DE')}`}     sub="this month"          color="text-green-400" />
+        <StatCard label="Total Spent"  value={`€${data.totalSpent.toLocaleString('de-DE')}`} sub={data.currentMonth} color="text-red-400"   />
+        <StatCard label="Income"       value={`€${data.income.toLocaleString('de-DE')}`}     sub={data.currentMonth} color="text-green-400" />
         <StatCard label="Anomalies"    value={String(data.anomalyCount)}                     sub="flagged transactions" color="text-green-400" />
         <StatCard label="AI Accuracy"  value={`${data.aiAccuracy}%`}                         sub="categorized"         color="text-green-400" />
       </div>
@@ -226,6 +293,77 @@ export default function DashboardPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* Cash Flow */}
+      <div className="grid gap-5 bg-[#111] rounded-2xl border border-[#2a2a2a] p-4 lg:p-6">
+        {/* Header with month navigation */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+              <h2 className="text-white font-semibold">Cash Flow</h2>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5 text-gray-500 font-mono text-xs">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> income
+                </span>
+                <span className="flex items-center gap-1.5 text-gray-500 font-mono text-xs">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" /> spend
+                </span>
+              </div>
+            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => data && canGoBack && setCashFlowMonth(data.availableMonths[monthIdx - 1])}
+              disabled={!canGoBack}
+              className="w-7 h-7 grid place-items-center rounded-lg border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-[#444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+            >
+              ←
+            </button>
+            <span className="text-gray-400 font-mono text-xs w-28 text-center">{cashFlowLabel}</span>
+            <button
+              onClick={() => data && canGoForward && setCashFlowMonth(data.availableMonths[monthIdx + 1])}
+              disabled={!canGoForward}
+              className="w-7 h-7 grid place-items-center rounded-lg border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-[#444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+            >
+              →
+            </button>
+          </div>
+        </div>
+
+        {/* Chart with blur overlay when no data */}
+        <div className="relative">
+          <div className={daily.length === 0 ? 'blur-sm pointer-events-none' : ''}>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={daily} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                <XAxis
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'monospace' }}
+                />
+                <YAxis hide />
+                <ReferenceLine y={0} stroke="#2a2a2a" strokeWidth={1} />
+                <Tooltip content={<CashFlowTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)' }} />
+                <Line
+                  dataKey="net"
+                  type="monotone"
+                  stroke="#4ade80"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#4ade80', strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: '#4ade80', strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {daily.length === 0 && (
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="grid gap-2 text-center">
+                <p className="text-white text-xl font-semibold">No data available</p>
+                <p className="text-gray-500 font-mono text-sm">No transactions found for {cashFlowLabel}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Anomaly Alerts */}

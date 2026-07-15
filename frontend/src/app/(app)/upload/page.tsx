@@ -1,91 +1,98 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 
-interface ImportResult {
+interface IngestionSummary {
   imported: number
   skipped: number
   categorized: number
+  uncategorized: number
   geminiCalls: number
-  bank?: string
-  period?: string
 }
-
-const BANKS = ['Postbank', 'Sparkasse', 'Commerzbank', 'Deutsche Bank', 'ING', 'Revolut', 'N26']
-
-const DEMO_RESULT: ImportResult = {
-  imported: 127, skipped: 0, categorized: 125, geminiCalls: 76,
-  bank: 'Postbank', period: 'Oct 2025',
-}
-
-function DocIcon() {
-  return (
-    <svg width="48" height="56" viewBox="0 0 48 56" fill="none">
-      <rect x="4" y="2" width="32" height="42" rx="3" fill="#2a2a2a" stroke="#3a3a3a" strokeWidth="1.5" />
-      <path d="M36 2l8 8h-8V2z" fill="#3a3a3a" />
-      <rect x="10" y="16" width="20" height="2" rx="1" fill="#4a4a4a" />
-      <rect x="10" y="22" width="16" height="2" rx="1" fill="#4a4a4a" />
-      <rect x="10" y="28" width="18" height="2" rx="1" fill="#4a4a4a" />
-    </svg>
-  )
-}
-
-type State = 'idle' | 'dragging' | 'uploading' | 'done' | 'error'
 
 export default function UploadPage() {
-  const [state, setState] = useState<State>('idle')
-  const [result, setResult] = useState<ImportResult | null>(null)
-  const [error, setError] = useState('')
+  const router = useRouter()
+  const [state, setState] = useState<'idle' | 'uploading' | 'done'>('idle')
   const [fileName, setFileName] = useState('')
+  const [result, setResult] = useState<IngestionSummary | null>(null)
+  const [error, setError] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const [isDemo, setIsDemo] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (localStorage.getItem('isDemo') === 'true') {
-      setResult(DEMO_RESULT)
-    }
+    const email = localStorage.getItem('userEmail')
+    setIsDemo(email === 'demo@fintrack.com')
   }, [])
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return
-    if (!file.name.endsWith('.pdf')) {
-      setError('Only PDF files are supported.')
+  async function handleUpload(file: File) {
+    if (isDemo) {
+      setError('Upload is not available in demo mode. Create an account to upload your own bank statements.')
       return
     }
-    setFileName(file.name)
+
+    if (!file || file.type !== 'application/pdf') {
+      setError('Please upload a PDF file.')
+      return
+    }
+
     setError('')
+    setFileName(file.name)
     setState('uploading')
 
-    const isDemo = localStorage.getItem('isDemo') === 'true'
-    if (isDemo) {
-      // Fake upload delay in demo mode
-      await new Promise(r => setTimeout(r, 1800))
-      setResult({ ...DEMO_RESULT, period: 'Demo' })
-      setState('done')
-      return
-    }
+    const form = new FormData()
+    form.append('file', file)
 
     try {
-      // API CALL: POST /api/transactions/upload
-      //   multipart form-data, field name: "file"
-      //   → IngestionSummary { imported, skipped, categorized, uncategorized, geminiCalls }
-      const form = new FormData()
-      form.append('file', file)
-      const { data } = await api.post('/api/transactions/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      setResult({
-        imported:     data.imported,
-        skipped:      data.skipped,
-        categorized:  data.categorized,
-        geminiCalls:  data.geminiCalls,
-        period:       new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
-      })
+      const { data } = await api.post<IngestionSummary>(
+        '/api/transactions/upload', form
+      )
+      setResult(data)
       setState('done')
-    } catch {
-      setError('Upload failed. Make sure the backend is running.')
-      setState('error')
+    } catch (err: unknown) {
+      setState('idle')
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } })
+              .response?.data?.message
+          : undefined
+      setError(msg || 'Upload failed. Please try again.')
     }
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) handleUpload(file)
+    e.target.value = ''
+  }
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (isDemo) {
+      setError('Upload is not available in demo mode. Create an account to upload your own bank statements.')
+      return
+    }
+    const file = e.dataTransfer.files[0]
+    if (file) handleUpload(file)
+  }, [isDemo])
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  function handleDragLeave() {
+    setIsDragging(false)
+  }
+
+  function reset() {
+    setState('idle')
+    setFileName('')
+    setResult(null)
+    setError('')
   }
 
   return (
@@ -93,88 +100,151 @@ export default function UploadPage() {
 
       {/* Header */}
       <div className="grid gap-1">
-        <h1 className="text-4xl font-black tracking-tight text-white md:text-4xl lg:text-4xl">Upload Statement</h1>
+        <h1 className="text-4xl font-black tracking-tight text-white">Upload Statement</h1>
         <p className="text-gray-500 font-mono text-sm">// supports all German banks via PDF</p>
       </div>
 
-      {/* Drop zone */}
-      <div className="bg-[#111] rounded-2xl border border-[#2a2a2a] p-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf"
-          className="hidden"
-          onChange={e => handleFile(e.target.files?.[0])}
-        />
-
-        <div
-          onClick={() => state !== 'uploading' && inputRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setState('dragging') }}
-          onDragLeave={() => setState(s => s === 'dragging' ? 'idle' : s)}
-          onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]) }}
-          className={`grid place-items-center gap-4 border-2 border-dashed rounded-xl py-16 px-6 cursor-pointer transition-colors select-none ${
-            state === 'dragging'
-              ? 'border-green-500/60 bg-green-500/5'
-              : 'border-[#2a2a2a] hover:border-[#444] hover:bg-[#131313]'
-          }`}
-        >
-          {state === 'uploading' ? (
-            <div className="grid place-items-center gap-3">
-              <div className="w-10 h-10 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
-              <p className="text-gray-400 font-mono text-sm">Uploading {fileName}...</p>
-            </div>
-          ) : (
-            <div className="grid place-items-center gap-3 text-center">
-              <DocIcon />
-              <div className="grid gap-1">
-                <p className="text-white font-semibold text-lg">Drop your bank statement here</p>
-                <p className="text-gray-500 text-sm">PDF format · all German banks supported</p>
-              </div>
-              {/* Bank pills */}
-              <div className="flex flex-wrap justify-center gap-2 mt-2">
-                {BANKS.map(b => (
-                  <span key={b} className="px-3 py-1 rounded-full border border-[#2a2a2a] text-gray-500 text-xs">
-                    {b}
-                  </span>
-                ))}
-              </div>
-              {error && <p className="text-red-400 font-mono text-sm">{error}</p>}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Last import result */}
-      {result && (
-        <div className="grid gap-5 bg-[#111] rounded-2xl border border-[#2a2a2a] p-5 lg:p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-white font-semibold">Last Import Result</h2>
-            {(result.period || result.bank) && (
-              <span className="text-gray-500 font-mono text-xs">
-                {[result.period, result.bank].filter(Boolean).join(' · ')}
-              </span>
-            )}
-          </div>
-
-          {/* Stats — 2 cols on mobile, 4 on desktop */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <ResultStat label="Imported"     value={result.imported}    color="text-green-400" />
-            <ResultStat label="Skipped"      value={result.skipped}     color="text-gray-500"  />
-            <ResultStat label="Categorized"  value={result.categorized} color="text-green-400" />
-            <ResultStat label="Gemini Calls" value={result.geminiCalls} color="text-amber-400" />
+      {/* Demo banner */}
+      {isDemo && (
+        <div className="bg-[#1a1a1a] border border-amber-900/40 rounded-xl px-5 py-4 flex items-start gap-3">
+          <span className="text-amber-400 text-lg shrink-0">⚠</span>
+          <div className="grid gap-1">
+            <p className="text-amber-400 font-mono text-sm font-medium">
+              Demo mode — uploads disabled
+            </p>
+            <p className="text-gray-500 font-mono text-xs">
+              You are viewing a demo account with preloaded data.{' '}
+              <button
+                onClick={() => router.push('/login')}
+                className="text-green-400 underline hover:text-green-300 transition-colors"
+              >
+                Create an account
+              </button>
+              {' '}to upload your own bank statements.
+            </p>
           </div>
         </div>
       )}
 
-    </div>
-  )
-}
+      {/* Upload zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => state === 'idle' && inputRef.current?.click()}
+        className={`
+          border-2 border-dashed rounded-2xl p-12 text-center transition-all
+          ${state === 'idle' && !isDemo ? 'cursor-pointer' : 'cursor-default'}
+          ${isDragging && !isDemo
+            ? 'border-green-500 bg-green-500/5'
+            : 'border-[#2a2a2a] hover:border-[#3a3a3a]'
+          }
+        `}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf"
+          onChange={handleFileInput}
+          className="hidden"
+        />
 
-function ResultStat({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="grid gap-2">
-      <span className="text-gray-600 font-mono text-xs uppercase tracking-widest">{label}</span>
-      <span className={`font-mono text-4xl font-bold leading-none ${color}`}>{value}</span>
+        {/* Idle state */}
+        {state === 'idle' && (
+          <div className="grid place-items-center gap-4">
+            <div className="text-5xl">📄</div>
+            <div className="grid gap-1">
+              <p className="text-white font-semibold text-lg">
+                {isDemo ? 'Upload not available in demo mode' : 'Drop your bank statement here'}
+              </p>
+              <p className="text-gray-500 font-mono text-sm">
+                {isDemo
+                  ? 'Create an account to upload your own statements'
+                  : 'PDF format · all German banks supported'
+                }
+              </p>
+            </div>
+            {!isDemo && (
+              <div className="flex flex-wrap gap-2 justify-center mt-2">
+                {['Postbank', 'Sparkasse', 'Commerzbank', 'Deutsche Bank', 'ING', 'Revolut', 'N26'].map(bank => (
+                  <span
+                    key={bank}
+                    className="px-3 py-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-full text-gray-500 font-mono text-xs"
+                  >
+                    {bank}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Uploading state */}
+        {state === 'uploading' && (
+          <div className="grid place-items-center gap-4">
+            <div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+            <div className="grid gap-1">
+              <p className="text-white font-mono text-sm">Uploading {fileName}</p>
+              <p className="text-gray-600 font-mono text-xs">
+                Processing transactions — this may take a few minutes
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Done state */}
+        {state === 'done' && result && (
+          <div className="grid place-items-center gap-4">
+            <div className="text-4xl">✓</div>
+            <p className="text-green-400 font-mono text-sm font-medium">Upload complete</p>
+            <button
+              onClick={e => { e.stopPropagation(); reset() }}
+              className="text-gray-500 text-xs font-mono underline hover:text-gray-400 transition-colors"
+            >
+              Upload another
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="bg-[#1a1a1a] border border-red-900/40 rounded-xl px-5 py-4">
+          <p className="text-red-400 font-mono text-sm">{error}</p>
+          {isDemo && (
+            <button
+              onClick={() => router.push('/login')}
+              className="text-green-400 text-xs font-mono underline mt-2 block hover:text-green-300 transition-colors"
+            >
+              Create an account →
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Result summary */}
+      {result && (
+        <div className="bg-[#111] rounded-2xl border border-[#2a2a2a] p-5 lg:p-6">
+          <span className="text-gray-600 font-mono text-xs uppercase tracking-widest">
+            Import Result — {fileName}
+          </span>
+          <div className="grid grid-cols-2 gap-4 mt-4 lg:grid-cols-5">
+            {[
+              { label: 'Imported',      value: result.imported,      color: 'text-green-400'  },
+              { label: 'Skipped',       value: result.skipped,       color: 'text-gray-500'   },
+              { label: 'Categorized',   value: result.categorized,   color: 'text-green-400'  },
+              { label: 'Uncategorized', value: result.uncategorized, color: 'text-amber-400'  },
+              { label: 'Gemini Calls',  value: result.geminiCalls,   color: 'text-teal-400'   },
+            ].map(s => (
+              <div key={s.label} className="grid gap-1">
+                <span className="text-gray-600 font-mono text-xs uppercase tracking-widest">{s.label}</span>
+                <span className={`font-mono text-2xl font-bold ${s.color}`}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

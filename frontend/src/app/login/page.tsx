@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import DemoButton from '@/components/DemoButton'
+  
 
 type Tab = 'login' | 'register'
 
@@ -25,7 +27,7 @@ export default function LoginPage() {
       const { data } = await api.post(endpoint, { email, password })
       localStorage.setItem('token', data.token)
       localStorage.setItem('userEmail', data.email)
-      localStorage.removeItem('isDemo')
+      localStorage.removeItem('fintrack_chat_history')
       router.push('/dashboard')
     } catch (err: unknown) {
       const msg =
@@ -39,23 +41,21 @@ export default function LoginPage() {
   }
 
   async function handleDemo() {
-    // TODO: Create a real demo account (demo@fintrack.com / demo123) in the backend
-    //       so this button logs in with real pre-seeded data.
-    //       For now it falls back to mock mode so you can preview the UI.
-    try {
-      const { data } = await api.post('/api/auth/login', {
-        email: 'demo@fintrack.com',
-        password: 'demo123',
-      })
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('userEmail', data.email)
-      localStorage.removeItem('isDemo')
-    } catch {
-      // Backend has no demo account yet — use mock mode
-      localStorage.setItem('token', 'demo-mock-token')
-      localStorage.setItem('isDemo', 'true')
-    }
+  setLoading(true)
+  try {
+    const { data } = await api.post('/api/auth/login', {
+      email: 'omidddd105@gmail.com',
+      password: 'bala12345678',
+    })
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('userEmail', 'omidddd105@gmail.com')
+    localStorage.removeItem('isDemo')
     router.push('/dashboard')
+  } catch {
+    setError('Demo account unavailable. Please try again.')
+  } finally {
+    setLoading(false)
+  }
   }
 
   function switchTab(t: Tab) {
@@ -104,13 +104,7 @@ export default function LoginPage() {
         </div>
 
         {/* Demo button */}
-        <button
-          type="button"
-          onClick={handleDemo}
-          className="w-full py-2.5 rounded-xl bg-[#1a3320] border border-green-900 text-white font-medium hover:bg-[#1f3d27] active:bg-[#162b1c] transition-colors"
-        >
-          Try Demo Account
-        </button>
+        <DemoButton className="w-full py-2.5 rounded-xl bg-[#1a3320] border border-green-900 text-white font-medium hover:bg-[#1f3d27] active:bg-[#162b1c] transition-colors" />
 
         {/* Section label */}
         <p className="text-center text-white font-mono text-sm tracking-wide">

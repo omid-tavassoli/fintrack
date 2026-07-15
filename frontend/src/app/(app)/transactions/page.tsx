@@ -1,22 +1,8 @@
 'use client'
 
+import api from '@/lib/api'
 import { useEffect, useMemo, useState } from 'react'
 
-// ── Mock data (used when isDemo=true) ─────────────────────────────────────────
-const DEMO_TRANSACTIONS = [
-  { id: 1,  description: 'Bantschow Services GmbH · LOHN',      counterpart: 'Bantschow Services', amount:  1247.73, transactionDate: '2025-10-29', categoryName: 'Transfers',   categoryId: 1, isAnomaly: false, geminiUsed: false },
-  { id: 2,  description: 'SEPA Überweisung Klaus Lemke · Miete', counterpart: 'Klaus Lemke',        amount:  -600.00, transactionDate: '2025-10-29', categoryName: 'Transfers',   categoryId: 1, isAnomaly: false, geminiUsed: true  },
-  { id: 3,  description: 'SumUp Mr. Masala Munster',             counterpart: 'Mr. Masala',         amount:   -11.90, transactionDate: '2025-10-27', categoryName: 'Restaurants', categoryId: 2, isAnomaly: false, geminiUsed: true  },
-  { id: 4,  description: 'Techniker Krankenkasse · Beitraege',   counterpart: 'TK',                 amount:  -144.24, transactionDate: '2025-10-15', categoryName: 'Health',      categoryId: 3, isAnomaly: true,  geminiUsed: false },
-  { id: 5,  description: 'Restaurant Hani Frankfurt',            counterpart: 'Restaurant Hani',    amount:   -41.00, transactionDate: '2025-10-13', categoryName: 'Restaurants', categoryId: 2, isAnomaly: true,  geminiUsed: true  },
-  { id: 6,  description: 'REWE Ahmet Akay Frankfurt',            counterpart: 'REWE',               amount:   -15.16, transactionDate: '2025-10-10', categoryName: 'Groceries',   categoryId: 4, isAnomaly: false, geminiUsed: false },
-  { id: 7,  description: 'MVG Monatskarte Oktober',              counterpart: 'MVG München',        amount:   -57.80, transactionDate: '2025-10-05', categoryName: 'Transport',   categoryId: 5, isAnomaly: false, geminiUsed: true  },
-  { id: 8,  description: 'Spotify Premium',                      counterpart: 'Spotify AB',         amount:   -10.99, transactionDate: '2025-10-01', categoryName: 'Subscriptions', categoryId: 6, isAnomaly: false, geminiUsed: false },
-  { id: 9,  description: 'ZARA Frankfurt Börsenstraße',          counterpart: 'ZARA',               amount:   -30.10, transactionDate: '2025-09-28', categoryName: 'Shopping',    categoryId: 7, isAnomaly: true,  geminiUsed: true  },
-  { id: 10, description: 'EDEKA Center Frankfurt',               counterpart: 'EDEKA',              amount:   -42.30, transactionDate: '2025-09-25', categoryName: 'Groceries',   categoryId: 4, isAnomaly: false, geminiUsed: false },
-]
-
-// ── Types ──────────────────────────────────────────────────────────────────────
 interface Transaction {
   id: number
   description: string
@@ -29,8 +15,8 @@ interface Transaction {
   geminiUsed: boolean
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-// Deterministic color per category name (maps to one of 6 palettes)
+interface Category { id: number; name: string }
+
 const PALETTES = [
   'bg-green-500/15 text-green-400 border-green-500/20',
   'bg-amber-500/15 text-amber-400 border-amber-500/20',
@@ -51,17 +37,6 @@ function fmtAmount(v: number) {
   return v >= 0 ? `+€${abs}` : `-€${abs}`
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-function CategoryBadge({ name }: { name: string }) {
-  // TODO: Make this clickable to trigger PATCH /api/transactions/{id}/category
-  //       Needs a category picker dropdown (GET /api/categories for the list)
-  return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-medium border ${catColor(name)}`}>
-      {name}
-    </span>
-  )
-}
-
 function AiBadge({ geminiUsed }: { geminiUsed: boolean }) {
   if (geminiUsed) return <span className="text-xs font-mono text-teal-400">gemini</span>
   return <span className="text-xs font-mono text-gray-600 bg-[#1e1e1e] px-2 py-0.5 rounded-md">rule</span>
@@ -77,169 +52,369 @@ function WarnIcon() {
   )
 }
 
+// ── Edit Modal ─────────────────────────────────────────────────────────────────
+function EditModal({
+  tx, categories, onClose, onSave,
+}: {
+  tx: Transaction
+  categories: Category[]
+  onClose: () => void
+  onSave: (txId: number, categoryId: number, categoryName: string) => void
+}) {
+  const [selectedId, setSelectedId] = useState(tx.categoryId)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      // API CALL: PATCH /api/transactions/{id}/category
+      // → body: { categoryId }
+      // → TransactionResponse with updated category
+      await api.patch(`/api/transactions/${tx.id}/category`, { categoryId: selectedId })
+      const cat = categories.find(c => c.id === selectedId)
+      onSave(tx.id, selectedId, cat?.name ?? '')
+      onClose()
+    } catch {
+      // request failed — still update UI optimistically
+      const cat = categories.find(c => c.id === selectedId)
+      onSave(tx.id, selectedId, cat?.name ?? '')
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-md p-6 grid gap-5 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="grid gap-1">
+            <h2 className="text-white font-bold text-lg leading-tight">{tx.counterpart || 'Transaction'}</h2>
+            <p className="text-gray-500 font-mono text-xs">{tx.transactionDate}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-600 hover:text-white text-xl leading-none mt-0.5">×</button>
+        </div>
+
+        {/* Details */}
+        <div className="grid gap-3 bg-[#0e0e0e] rounded-xl p-4">
+          <Row label="Amount"      value={<span className={tx.amount >= 0 ? 'text-green-400' : 'text-red-400'}>{fmtAmount(tx.amount)}</span>} />
+          <Row label="Description" value={<span className="text-gray-300 text-xs leading-relaxed">{tx.description}</span>} />
+          <Row label="Counterpart" value={tx.counterpart} />
+          <Row label="AI Method"   value={<AiBadge geminiUsed={tx.geminiUsed} />} />
+          {tx.isAnomaly && <Row label="Anomaly" value={<span className="text-amber-400 font-mono text-xs">⚠ flagged</span>} />}
+        </div>
+
+        {/* Category picker */}
+        <div className="grid gap-2">
+          <label className="text-xs font-bold text-white uppercase tracking-widest font-mono">Change Category</label>
+          <select
+            value={selectedId}
+            onChange={e => setSelectedId(Number(e.target.value))}
+            className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-green-700 appearance-none cursor-pointer"
+          >
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-xl border border-[#2a2a2a] text-gray-400 text-sm font-medium hover:border-[#444] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-3 rounded-xl bg-green-500 text-black text-sm font-bold hover:bg-green-400 transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <span className="text-gray-600 font-mono text-xs shrink-0 pt-0.5">{label}</span>
+      <span className="text-white text-sm text-right">{value}</span>
+    </div>
+  )
+}
+
+function formatMonth(m: string) {
+  const [y, mo] = m.split('-')
+  return new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [search, setSearch] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [query, setQuery] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<string>('date')
+  const [editTx, setEditTx] = useState<Transaction | null>(null)
 
   useEffect(() => {
-    const isDemo = localStorage.getItem('isDemo') === 'true'
-
-    if (isDemo) {
-      setTransactions(DEMO_TRANSACTIONS)
-      return
-    }
-
-    // API CALL: GET /api/transactions
-    //   → TransactionResponse[] { id, description, counterpart, amount, transactionDate,
-    //                             categoryName, categoryId, isAnomaly, geminiUsed }
-    //   setTransactions(data)
+    Promise.all([
+      api.get('/api/transactions'),
+      api.get('/api/categories'),
+    ]).then(([txRes, catRes]) => {
+      setTransactions(txRes.data)
+      setCategories(catRes.data)
+    }).catch(console.error)
   }, [])
 
-  // Derive stats from the full list (before filters)
-  const total        = transactions.length
-  const categorized  = transactions.filter(t => t.categoryName).length
+  // Stats (always from full list)
+  const total         = transactions.length
+  const categorized   = transactions.filter(t => t.categoryName).length
   const uncategorized = total - categorized
+  const geminiCalls   = transactions.filter(t => t.geminiUsed).length
 
-  // Top 3 categories by frequency → shown as quick-filter pills
-  const topCategories = useMemo(() => {
-    const freq: Record<string, number> = {}
-    transactions.forEach(t => { if (t.categoryName) freq[t.categoryName] = (freq[t.categoryName] ?? 0) + 1 })
-    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name)
-  }, [transactions])
+  // Unique months from data, newest first
+  const months = useMemo(() =>
+    Array.from(new Set(transactions.map(t => t.transactionDate.slice(0, 7)))).sort().reverse()
+  , [transactions])
 
-  // Apply search + active filter
+  // Apply month filter first — everything else derives from this
+  const monthFiltered = useMemo(() => {
+    if (!selectedMonth) return transactions
+    return transactions.filter(t => t.transactionDate.startsWith(selectedMonth))
+  }, [transactions, selectedMonth])
+
+  // Fixed category filter list
+  const CATEGORY_FILTERS = [
+    'Transfers', 'Transport', 'Health', 'Shopping', 'Rent & Utilities',
+    'Entertainment', 'Donations', 'University',
+  ]
+
+  // Category + AI filter → then text search within that result → then sort
   const filtered = useMemo(() => {
-    let list = transactions
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    // 1. Category / anomaly / AI filter
+    let list = monthFiltered
+    if      (activeFilter === 'anomalies') list = list.filter(t => t.isAnomaly)
+    else if (activeFilter !== 'all')       list = list.filter(t => t.categoryName?.toLowerCase() === activeFilter.toLowerCase())
+    if (sortBy === 'ai') list = list.filter(t => t.geminiUsed)
+
+    // 2. Text search within the already-filtered list
+    if (query.trim()) {
+      const q = query.toLowerCase()
       list = list.filter(t =>
         t.description.toLowerCase().includes(q) ||
         t.counterpart.toLowerCase().includes(q)
       )
     }
-    if (activeFilter === 'anomalies') list = list.filter(t => t.isAnomaly)
-    else if (activeFilter !== 'all') list = list.filter(t => t.categoryName === activeFilter)
-    return list
-  }, [transactions, search, activeFilter])
+
+    // 3. Sort
+    const sorted = [...list]
+    if (sortBy === 'amount-asc')
+      sorted.sort((a, b) => {
+        const diff = Math.abs(a.amount) - Math.abs(b.amount)
+        return diff !== 0 ? diff : a.amount - b.amount // tie: negative first
+      })
+    else if (sortBy === 'amount-desc')
+      sorted.sort((a, b) => {
+        const diff = Math.abs(b.amount) - Math.abs(a.amount)
+        return diff !== 0 ? diff : a.amount - b.amount // tie: negative first
+      })
+    else if (sortBy === 'date')        sorted.sort((a, b) => a.transactionDate.localeCompare(b.transactionDate))
+    return sorted
+  }, [monthFiltered, query, activeFilter, sortBy])
+
+  // Category override callback
+  function handleCategoryUpdate(txId: number, categoryId: number, categoryName: string) {
+    setTransactions(prev =>
+      prev.map(t => t.id === txId ? { ...t, categoryId, categoryName } : t)
+    )
+  }
 
   return (
-    <div className="grid gap-5 p-4 md:gap-6 md:p-6 lg:p-8">
+    <>
+      {/* Edit Modal */}
+      {editTx && (
+        <EditModal
+          tx={editTx}
+          categories={categories}
+          onClose={() => setEditTx(null)}
+          onSave={handleCategoryUpdate}
+        />
+      )}
 
-      {/* Header */}
-      <div className="grid gap-1">
-        <h1 className="text-4xl font-black tracking-tight text-white md:text-4xl lg:text-4xl">Transactions</h1>
+      <div className="grid gap-5 p-4 md:gap-6 md:p-6 lg:p-8">
+
+        {/* Header */}
+        <div className="grid gap-1">
+          <h1 className="text-4xl font-black tracking-tight text-white">Transactions</h1>
         <p className="text-gray-500 font-mono text-sm">
-          // {total} total · {categorized} categorized · {uncategorized} uncategorized
+          // browse, search, and edit your transactions
         </p>
-      </div>
+        </div>
 
-      {/* Filter bar — search + category pills */}
-      <div className="flex flex-wrap items-center gap-3">
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: 'Imported',      value: total,         color: 'text-white'      },
+            { label: 'Categorized',   value: categorized,   color: 'text-green-400'  },
+            { label: 'Uncategorized', value: uncategorized, color: 'text-amber-400'  },
+            { label: 'AI Calls',  value: geminiCalls,   color: 'text-teal-400'   },
+          ].map(s => (
+            <div key={s.label} className="bg-[#111] rounded-xl border border-[#2a2a2a] p-4 grid gap-1">
+              <span className="text-gray-600 font-mono text-xs uppercase tracking-widest">{s.label}</span>
+              <span className={`font-mono text-2xl font-bold ${s.color}`}>{s.value}</span>
+            </div>
+          ))}
+        </div>
 
         {/* Search */}
         <input
           type="text"
           placeholder="Search transactions..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 outline-none focus:ring-2 focus:ring-green-700 transition-all font-mono"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 outline-none focus:ring-2 focus:ring-green-700 transition-all font-mono"
         />
 
-        {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {['all', ...topCategories, 'anomalies'].map(f => {
-            const active = activeFilter === f
-            const label = f === 'all' ? 'All' : f === 'anomalies' ? '⚠ Anomalies' : f
-            return (
+        {/* Filters — month row + category row */}
+        <div className="grid gap-3">
+
+          {/* Month filter */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-gray-600 font-mono text-xs uppercase tracking-widest w-16 shrink-0">Month</span>
+            <div className="flex gap-2 flex-wrap">
               <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                  active
-                    ? 'border-green-500 text-green-400 bg-green-500/10'
-                    : 'border-[#2a2a2a] text-gray-500 hover:text-white hover:border-[#444]'
+                onClick={() => { setSelectedMonth(null); setActiveFilter('all') }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  !selectedMonth ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-[#2a2a2a] text-gray-500 hover:text-white hover:border-[#444]'
                 }`}
               >
-                {label}
+                All
               </button>
-            )
-          })}
-        </div>
-      </div>
+              {months.map(m => (
+                <button
+                  key={m}
+                  onClick={() => { setSelectedMonth(m); setActiveFilter('all') }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors font-mono ${
+                    selectedMonth === m ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-[#2a2a2a] text-gray-500 hover:text-white hover:border-[#444]'
+                  }`}
+                >
+                  {formatMonth(m)}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Table */}
-      <div className="bg-[#111] rounded-2xl border border-[#2a2a2a] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px]">
-            <thead>
-              <tr className="border-b border-[#1e1e1e]">
-                {['Date', 'Description', 'Counterpart', 'Category', 'Amount', 'AI'].map(col => (
-                  <th
-                    key={col}
-                    className="px-5 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-widest font-mono"
+          {/* Category filter — dropdown on mobile, pills on md+ */}
+          <div className="flex items-center gap-3">
+            <span className="text-gray-600 font-mono text-xs uppercase tracking-widest w-16 shrink-0">Category</span>
+
+            {/* Mobile: dropdown */}
+            <select
+              value={activeFilter}
+              onChange={e => setActiveFilter(e.target.value)}
+              className="md:hidden flex-1 bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-green-700 appearance-none cursor-pointer [color-scheme:dark]"
+            >
+              {['all', ...CATEGORY_FILTERS, 'anomalies'].map(f => (
+                <option key={f} value={f}>
+                  {f === 'all' ? 'All' : f === 'anomalies' ? '⚠ Anomalies' : f}
+                </option>
+              ))}
+            </select>
+
+            {/* Desktop: pills */}
+            <div className="hidden md:flex gap-2 flex-wrap">
+              {['all', ...CATEGORY_FILTERS, 'anomalies'].map(f => {
+                const active = activeFilter === f
+                const label = f === 'all' ? 'All' : f === 'anomalies' ? '⚠ Anomalies' : f
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setActiveFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap ${
+                      active ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-[#2a2a2a] text-gray-500 hover:text-white hover:border-[#444]'
+                    }`}
                   >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-gray-600 font-mono text-sm">
-                    no transactions found
-                  </td>
-                </tr>
-              ) : (
-                filtered.map(t => (
-                  <tr
-                    key={t.id}
-                    className="border-b border-[#1a1a1a] last:border-0 hover:bg-[#131313] transition-colors"
-                  >
-                    {/* Date */}
-                    <td className="px-5 py-4 text-gray-500 font-mono text-sm whitespace-nowrap">
-                      {t.transactionDate}
-                    </td>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-                    {/* Description */}
-                    <td className="px-5 py-4 text-white text-sm max-w-[220px]">
-                      <span className="truncate block">{t.description}</span>
-                    </td>
+          {/* Sort */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-gray-600 font-mono text-xs uppercase tracking-widest w-16 shrink-0">Sort</span>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'date',        label: 'Date' },
+                { key: 'amount-asc',  label: 'Amount ↑' },
+                { key: 'amount-desc', label: 'Amount ↓' },
+                { key: 'ai',          label: 'AI Categorized' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSortBy(key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap ${
+                    sortBy === key ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-[#2a2a2a] text-gray-500 hover:text-white hover:border-[#444]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-                    {/* Counterpart */}
-                    <td className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
-                      {t.counterpart}
-                    </td>
-
-                    {/* Category */}
-                    <td className="px-5 py-4">
-                      <CategoryBadge name={t.categoryName || 'Uncategorized'} />
-                    </td>
-
-                    {/* Amount */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-mono text-sm font-medium tabular-nums ${t.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {fmtAmount(t.amount)}
-                        </span>
-                        {t.isAnomaly && <WarnIcon />}
-                      </div>
-                    </td>
-
-                    {/* AI */}
-                    <td className="px-5 py-4">
-                      <AiBadge geminiUsed={t.geminiUsed} />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
-      </div>
 
-    </div>
+        {/* Transaction cards — all screen sizes */}
+        <div className="grid gap-3">
+          {filtered.length === 0 ? (
+            <p className="text-center text-gray-600 font-mono text-sm py-10">no transactions found</p>
+          ) : filtered.map(t => (
+            <div key={t.id} className="bg-[#111] border border-[#2a2a2a] rounded-2xl p-4 grid gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500 font-mono text-xs">
+                  {t.transactionDate.split('-').reverse().join('/')}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`font-mono text-sm font-semibold tabular-nums ${t.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {fmtAmount(t.amount)}
+                  </span>
+                  {t.isAnomaly && <WarnIcon />}
+                </div>
+              </div>
+              <p className="text-white text-sm font-medium leading-snug">{t.description}</p>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium border ${catColor(t.categoryName || 'Uncategorized')}`}>
+                    {t.categoryName || 'Uncategorized'}
+                  </span>
+                  <span className="text-gray-600 text-xs">{t.counterpart}</span>
+                  <AiBadge geminiUsed={t.geminiUsed} />
+                </div>
+                <button
+                  onClick={() => setEditTx(t)}
+                  className="px-3 py-1 rounded-lg border border-[#2a2a2a] text-gray-500 text-xs hover:border-green-500/50 hover:text-green-400 transition-colors font-mono shrink-0"
+                >
+                  edit
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </>
   )
 }

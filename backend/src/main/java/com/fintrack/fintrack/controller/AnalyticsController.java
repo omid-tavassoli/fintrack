@@ -43,7 +43,7 @@ public class AnalyticsController {
         );
     }
 
-    @GetMapping("/budget")
+    @GetMapping("/budgets")
     public ResponseEntity<List<BudgetStatusDTO>> budgets(
             @AuthenticationPrincipal UserDetails userDetails){
         return ResponseEntity.ok(

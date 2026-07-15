@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,7 @@ public class GeminiClient {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(30))
                     .block();
 
             return extractText(response);
@@ -117,7 +119,7 @@ public class GeminiClient {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException("Interrupted during retry");
                 }
-                log.warn("Gemini attempt {} failed, retrying...", attempt);
+                log.warn("Gemini attempt {} failed, retrying...", attempt, e.getMessage());
             }
         }
         throw new RuntimeException("Gemini unavailable after retries");

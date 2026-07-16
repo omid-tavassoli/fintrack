@@ -131,7 +131,7 @@ Stored in PostgreSQL
 <td valign="top" width="50%">
 
 **Backend** `Spring Boot 3 · Java 21`
-
+```
 backend/src/main/java/
 └── com/fintrack/fintrack/
 ├── controller/
@@ -155,11 +155,12 @@ backend/src/main/java/
 ├── dto/
 ├── security/
 └── exception/
-
+```
 </td>
 <td valign="top" width="50%">
 
 **Frontend** `Next.js 14 · TypeScript · Tailwind`
+```
 frontend/src/app/
 ├── (auth)/
 │   └── login/
@@ -175,7 +176,7 @@ frontend/src/app/
 │   └── page.tsx
 └── budgets/
 └── page.tsx
-
+```
 **Database Migrations** `Flyway`
 V1 — users
 V2 — categories

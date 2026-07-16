@@ -4,7 +4,7 @@
 
 > Upload your bank statement. Get instant AI insights.
 
-**[Live Demo](https://fintrack.omidtavassoli.dev)** · Demo login: `demo@fintrack.com` / `demo1234`
+**[Live Demo](https://fintrack.omidtavassoli.dev)** 
 
 ---
 
@@ -18,7 +18,7 @@ No bank connection required. No subscription. Your data stays on your server.
 
 ## Demo
 
-![FinTrack Demo](frontend/public/fintrack-demo.gif)
+**[fintrack.omidtavassoli.dev](https://fintrack.omidtavassoli.dev)** 
 
 ---
 

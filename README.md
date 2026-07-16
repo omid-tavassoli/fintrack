@@ -1,4 +1,25 @@
-# FinTrack — AI-Powered Personal Finance Tracker
+<div align="center">
+
+# 🟢 FinTrack
+
+### AI-Powered Personal Finance Tracker
+
+*Upload your bank statement. Get instant AI insights.*
+
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot%203-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Next.js](https://img.shields.io/badge/Next.js%2014-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Google Gemini](https://img.shields.io/badge/Gemini%202.5%20Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+
+**[🚀 Live Demo](https://fintrack.omidtavassoli.dev)** · Demo: `demo@fintrack.com` / `demo1234`
+
+![FinTrack Demo](frontend/public/fintrack-demo.gif)
+
+</div>
+
+---
 
 ![FinTrack Demo](frontend/public/fintrack-demo.gif)
 
@@ -66,83 +87,106 @@ The system learns from corrections — every category override becomes a rule th
 
 ## Architecture
 
-Browser (Next.js 14)
-│
-│ HTTPS
-▼
-Nginx (Reverse Proxy + SSL)
-│
-├──── /api/*  ──────▶  Spring Boot 3 (port 8080)
-│                           │
-│                           ├── Controller Layer
-│                           ├── Service Layer
-│                           │     ├── GeminiPdfExtractor
-│                           │     ├── CategorizationService
-│                           │     ├── AnomalyDetectionService
-│                           │     ├── NlQueryService
-│                           │     └── ChatService
-│                           ├── Repository Layer (JPA)
-│                           └── Security (JWT Filter Chain)
-│                                     │
-│                           ┌─────────┴──────────┐
-│                           ▼                    ▼
-│                      PostgreSQL          Gemini 2.5 Flash
-│                      + Flyway            (Vision + NL)
-│
-└──── /*  ──────────▶  Next.js (port 3003)
-├── /login
-├── /dashboard
-├── /transactions
-├── /upload
-├── /chat
-└── /budgets
+<div align="center">
+
+| Layer | Technology | Role |
+|-------|-----------|------|
+| **Browser** | Next.js 14 | Frontend SPA |
+| **Reverse Proxy** | Nginx + SSL | Routing + HTTPS |
+| **Backend** | Spring Boot 3 | REST API + Business Logic |
+| **Database** | PostgreSQL + Flyway | Persistence + Migrations |
+| **AI** | Gemini 2.5 Flash | PDF Extraction + Categorization + NL Queries |
+
+</div>
+
+### Request Flow
+
+User → Nginx → Spring Boot → PostgreSQL
+↓
+Gemini 2.5 Flash
+(PDF extraction / categorization / NL queries)
+
+### AI Pipeline
+
+PDF Upload
+↓
+Gemini Vision extracts transactions as JSON
+↓
+TextNormalizer cleans raw descriptions
+↓
+Rule Cache lookup (global + user corrections)
+↓ (no match)
+Gemini Flash categorizes unknown merchants
+↓
+Z-score anomaly detection
+↓
+Stored in PostgreSQL
 
 ---
 
 ## Project Structure
 
-fintrack/
-│
-├── backend/                          # Spring Boot 3 · Java 21
-│   └── src/main/
-│       ├── java/com/fintrack/fintrack/
-│       │   ├── controller/           # REST endpoints
-│       │   │   ├── AuthController
-│       │   │   ├── TransactionController
-│       │   │   ├── AnalyticsController
-│       │   │   ├── ChatController
-│       │   │   ├── BudgetController
-│       │   │   ├── NlQueryController
-│       │   │   └── HealthController
-│       │   ├── service/              # Business logic + AI
-│       │   │   ├── GeminiClient          ← Gemini API wrapper
-│       │   │   ├── GeminiPdfExtractor    ← PDF → structured JSON
-│       │   │   ├── CategorizationService ← rules → Gemini fallback
-│       │   │   ├── PdfIngestionService   ← upload orchestration
-│       │   │   ├── AnomalyDetectionService ← z-score detection
-│       │   │   ├── NlQueryService        ← text → SQL → answer
-│       │   │   ├── ChatService           ← conversational AI
-│       │   │   ├── AnalyticsService      ← spending analytics
-│       │   │   └── TextNormalizer        ← description cleaning
-│       │   ├── repository/           # Spring Data JPA interfaces
-│       │   ├── entity/               # JPA entities (DB tables)
-│       │   ├── dto/                  # Request/response objects
-│       │   ├── security/             # JWT filter chain
-│       │   └── exception/            # Global error handling
-│       └── resources/
-│           ├── db/migration/         # Flyway SQL migrations (V1–V6)
-│           └── application.yaml      # App configuration
-│
-└── frontend/                         # Next.js 14 · TypeScript · Tailwind
-└── src/app/
+<table>
+<tr>
+<td valign="top" width="50%">
+
+**Backend** `Spring Boot 3 · Java 21`
+
+backend/src/main/java/
+└── com/fintrack/fintrack/
+├── controller/
+│   ├── AuthController
+│   ├── TransactionController
+│   ├── AnalyticsController
+│   ├── ChatController
+│   ├── BudgetController
+│   └── NlQueryController
+├── service/
+│   ├── GeminiClient
+│   ├── GeminiPdfExtractor
+│   ├── CategorizationService
+│   ├── PdfIngestionService
+│   ├── AnomalyDetectionService
+│   ├── NlQueryService
+│   ├── ChatService
+│   └── TextNormalizer
+├── repository/
+├── entity/
+├── dto/
+├── security/
+└── exception/
+
+</td>
+<td valign="top" width="50%">
+
+**Frontend** `Next.js 14 · TypeScript · Tailwind`
+frontend/src/app/
 ├── (auth)/
-│   └── login/                # Login + register + demo button
+│   └── login/
+│       └── page.tsx
 └── (app)/
-├── dashboard/            # Charts · anomalies · stats
-├── transactions/         # Table · NL search · category edit
-├── upload/               # PDF upload · ingestion result
-├── chat/                 # AI chat assistant
-└── budgets/              # Budget tracking · progress bars
+├── dashboard/
+│   └── page.tsx
+├── transactions/
+│   └── page.tsx
+├── upload/
+│   └── page.tsx
+├── chat/
+│   └── page.tsx
+└── budgets/
+└── page.tsx
+
+**Database Migrations** `Flyway`
+V1 — users
+V2 — categories
+V3 — transactions
+V4 — budgets
+V5 — global_category_rules
+V6 — user_category_rules
+
+</td>
+</tr>
+</table>
 
 ---
 

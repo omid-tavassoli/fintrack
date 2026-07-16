@@ -66,64 +66,84 @@ The system learns from corrections — every category override becomes a rule th
 
 ## Architecture
 
-┌──────────────┐         ┌─────────────────────────────┐
-│  Next.js 14  │─HTTPS──▶│   Nginx (Reverse Proxy)     │
-└──────────────┘         └──────────────┬──────────────┘
+Browser (Next.js 14)
 │
-┌──────────────▼──────────────┐
-│       Spring Boot 3          │
-│  Controller → Service → JPA  │
-└──────┬──────────────┬────────┘
-│              │
-┌───────────▼───┐  ┌───────▼────────┐
-│  PostgreSQL   │  │ Gemini 2.5 Flash│
-│  + Flyway     │  │   (Vision + NL) │
-└───────────────┘  └────────────────┘
-
----
-
-## Running Locally
-
-**Prerequisites:** Java 21, Docker, Node.js 18+
-
-```bash
-# Clone
-git clone https://github.com/omid-tavassoli/fintrack.git
-cd fintrack
-
-# Backend
-cd backend
-docker-compose up -d
-# Add environment variables to IntelliJ run configuration:
-# DB_USERNAME, DB_PASSWORD, JWT_SECRET, GEMINI_API_KEY
-./gradlew bootRun
-
-# Frontend  
-cd ../frontend
-npm install
-echo "NEXT_PUBLIC_API_URL=http://localhost:8080" > .env.local
-npm run dev
-```
+│ HTTPS
+▼
+Nginx (Reverse Proxy + SSL)
+│
+├──── /api/*  ──────▶  Spring Boot 3 (port 8080)
+│                           │
+│                           ├── Controller Layer
+│                           ├── Service Layer
+│                           │     ├── GeminiPdfExtractor
+│                           │     ├── CategorizationService
+│                           │     ├── AnomalyDetectionService
+│                           │     ├── NlQueryService
+│                           │     └── ChatService
+│                           ├── Repository Layer (JPA)
+│                           └── Security (JWT Filter Chain)
+│                                     │
+│                           ┌─────────┴──────────┐
+│                           ▼                    ▼
+│                      PostgreSQL          Gemini 2.5 Flash
+│                      + Flyway            (Vision + NL)
+│
+└──── /*  ──────────▶  Next.js (port 3003)
+├── /login
+├── /dashboard
+├── /transactions
+├── /upload
+├── /chat
+└── /budgets
 
 ---
 
 ## Project Structure
 
 fintrack/
-├── backend/                    # Spring Boot
-│   └── src/main/java/com/fintrack/fintrack/
-│       ├── controller/         # REST endpoints
-│       ├── service/            # Business logic + AI
-│       ├── repository/         # Spring Data JPA
-│       ├── entity/             # JPA entities
-│       ├── dto/                # Request/response DTOs
-│       ├── security/           # JWT filter chain
-│       └── exception/          # Global error handling
-└── frontend/                   # Next.js 14
+│
+├── backend/                          # Spring Boot 3 · Java 21
+│   └── src/main/
+│       ├── java/com/fintrack/fintrack/
+│       │   ├── controller/           # REST endpoints
+│       │   │   ├── AuthController
+│       │   │   ├── TransactionController
+│       │   │   ├── AnalyticsController
+│       │   │   ├── ChatController
+│       │   │   ├── BudgetController
+│       │   │   ├── NlQueryController
+│       │   │   └── HealthController
+│       │   ├── service/              # Business logic + AI
+│       │   │   ├── GeminiClient          ← Gemini API wrapper
+│       │   │   ├── GeminiPdfExtractor    ← PDF → structured JSON
+│       │   │   ├── CategorizationService ← rules → Gemini fallback
+│       │   │   ├── PdfIngestionService   ← upload orchestration
+│       │   │   ├── AnomalyDetectionService ← z-score detection
+│       │   │   ├── NlQueryService        ← text → SQL → answer
+│       │   │   ├── ChatService           ← conversational AI
+│       │   │   ├── AnalyticsService      ← spending analytics
+│       │   │   └── TextNormalizer        ← description cleaning
+│       │   ├── repository/           # Spring Data JPA interfaces
+│       │   ├── entity/               # JPA entities (DB tables)
+│       │   ├── dto/                  # Request/response objects
+│       │   ├── security/             # JWT filter chain
+│       │   └── exception/            # Global error handling
+│       └── resources/
+│           ├── db/migration/         # Flyway SQL migrations (V1–V6)
+│           └── application.yaml      # App configuration
+│
+└── frontend/                         # Next.js 14 · TypeScript · Tailwind
 └── src/app/
-├── (auth)/             # Login / register
-└── (app)/              # Dashboard, transactions, chat
+├── (auth)/
+│   └── login/                # Login + register + demo button
+└── (app)/
+├── dashboard/            # Charts · anomalies · stats
+├── transactions/         # Table · NL search · category edit
+├── upload/               # PDF upload · ingestion result
+├── chat/                 # AI chat assistant
+└── budgets/              # Budget tracking · progress bars
 
 ---
 
-*Built by [Omid Tavassoli](https://portfolio.omidtavassoli.dev)
+** Built by Omid Tavassoli [portfolio.omidtavassoli.dev](https://portfolio.omidtavassoli.dev)

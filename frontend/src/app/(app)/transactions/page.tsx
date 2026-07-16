@@ -166,6 +166,7 @@ export default function TransactionsPage() {
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('date')
   const [editTx, setEditTx] = useState<Transaction | null>(null)
+  const [isDemo, setIsDemo] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -176,6 +177,11 @@ export default function TransactionsPage() {
       setCategories(catRes.data)
     }).catch(console.error)
   }, [])
+
+  useEffect(() => {
+  const email = localStorage.getItem('userEmail')
+  setIsDemo(email === 'demo@fintrack.com')
+}, [])
 
   // Stats (always from full list)
   const total         = transactions.length
@@ -275,6 +281,7 @@ export default function TransactionsPage() {
               <span className={`font-mono text-2xl font-bold ${s.color}`}>{s.value}</span>
             </div>
           ))}
+          
         </div>
 
         {/* Search */}
@@ -285,6 +292,25 @@ export default function TransactionsPage() {
           onChange={e => setQuery(e.target.value)}
           className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 outline-none focus:ring-2 focus:ring-green-700 transition-all font-mono"
         />
+        {isDemo && (
+              <div className="bg-[#0e1a10] border border-green-900/30 rounded-xl px-5 py-4 flex items-start gap-3">
+                <span className="text-green-600 text-lg shrink-0 mt-0.5">🔒</span>
+                <div className="grid gap-1">
+                  <p className="text-green-400 font-mono text-xs font-semibold uppercase tracking-widest">
+                    Datenschutzhinweis
+                  </p>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Gemäß{' '}
+                    <span className="text-white font-medium">DSGVO Art. 4 Nr. 1</span>
+                    {' '}wurden in diesem Demo-Konto personenbezogene Daten anonymisiert: 
+                    Echte Namen wurden durch generische Bezeichnungen ersetzt, IBANs und 
+                    Kartennummern wurden entfernt, und persönliche Referenznummern wurden 
+                    geschwärzt. Transaktionsbeträge und Händlernamen spiegeln reale 
+                    Ausgabemuster wider.
+                  </p>
+                </div>
+              </div>
+            )}
 
         {/* Filters — month row + category row */}
         <div className="grid gap-3">

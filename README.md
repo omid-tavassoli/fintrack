@@ -21,17 +21,17 @@
 
 ---
 
+## Demo
+
+** go to [fintrack.omidtavassoli.dev](https://fintrack.omidtavassoli.dev) to see the demo or make an account to use the application ** 
+
+---
+
 ## What it does
 
 German banks give you raw transaction lists with no intelligence. FinTrack takes your monthly PDF bank statement and turns it into actionable insights — automatically categorized, anomaly-detected, and queryable in plain language.
 
 No bank connection required. No subscription. Your data stays on your server.
-
----
-
-## Demo
-
-** go to [fintrack.omidtavassoli.dev](https://fintrack.omidtavassoli.dev) to see the demo or make an account to use the application ** 
 
 ---
 

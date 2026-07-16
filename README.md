@@ -93,69 +93,6 @@ The system learns from corrections — every category override becomes a rule th
 
 ## Project Structure
 
-<table>
-<tr>
-<td valign="top" width="50%">
-
-**Backend** `Spring Boot 3 · Java 21`
-```
-backend/src/main/java/
-└── com/fintrack/fintrack/
-├── controller/
-│   ├── AuthController
-│   ├── TransactionController
-│   ├── AnalyticsController
-│   ├── ChatController
-│   ├── BudgetController
-│   └── NlQueryController
-├── service/
-│   ├── GeminiClient
-│   ├── GeminiPdfExtractor
-│   ├── CategorizationService
-│   ├── PdfIngestionService
-│   ├── AnomalyDetectionService
-│   ├── NlQueryService
-│   ├── ChatService
-│   └── TextNormalizer
-├── repository/
-├── entity/
-├── dto/
-├── security/
-└── exception/
-```
-</td>
-<td valign="top" width="50%">
-
-**Frontend** `Next.js 14 · TypeScript · Tailwind`
-```
-frontend/src/app/
-├── (auth)/
-│   └── login/
-│       └── page.tsx
-└── (app)/
-├── dashboard/
-│   └── page.tsx
-├── transactions/
-│   └── page.tsx
-├── upload/
-│   └── page.tsx
-├── chat/
-│   └── page.tsx
-└── budgets/
-└── page.tsx
-```
-**Database Migrations** `Flyway`
-V1 — users
-V2 — categories
-V3 — transactions
-V4 — budgets
-V5 — global_category_rules
-V6 — user_category_rules
-
-</td>
-</tr>
-</table>
-
 ```
 fintrack/
 │
@@ -200,6 +137,13 @@ fintrack/
 ├── chat/                 # AI chat assistant
 └── budgets/              # Budget tracking · progress bars
 ```
+**Database Migrations** `Flyway`
+V1 — users<br>
+V2 — categories<br>
+V3 — transactions<br>
+V4 — budgets<br>
+V5 — global_category_rules<br>
+V6 — user_category_rules<br>
 
 ---
 

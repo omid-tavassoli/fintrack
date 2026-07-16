@@ -13,17 +13,11 @@
 [![Google Gemini](https://img.shields.io/badge/Gemini%202.5%20Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
 
-**[🚀 Live Demo](https://fintrack.omidtavassoli.dev)** · Demo: `demo@fintrack.com` / `demo1234`
+**[🚀 Live Demo](https://fintrack.omidtavassoli.dev)**<br>
 
 ![FinTrack Demo](frontend/public/fintrack-demo.gif)
 
 </div>
-
----
-
-> Upload your bank statement. Get instant AI insights.
-
-**[Live Demo](https://fintrack.omidtavassoli.dev)** 
 
 ---
 
@@ -37,7 +31,7 @@ No bank connection required. No subscription. Your data stays on your server.
 
 ## Demo
 
-**[fintrack.omidtavassoli.dev](https://fintrack.omidtavassoli.dev)** 
+** go to [fintrack.omidtavassoli.dev](https://fintrack.omidtavassoli.dev) to see the demo or make an account to use the application ** 
 
 ---
 
@@ -137,7 +131,7 @@ fintrack/
 ├── chat/                 # AI chat assistant
 └── budgets/              # Budget tracking · progress bars
 ```
-**Database Migrations** `Flyway`
+**Database Migrations** `Flyway`<br>
 V1 — users<br>
 V2 — categories<br>
 V3 — transactions<br>
@@ -147,4 +141,4 @@ V6 — user_category_rules<br>
 
 ---
 
-** Built by Omid Tavassoli [portfolio.omidtavassoli.dev](https://portfolio.omidtavassoli.dev)
+** Built by Omid Tavassoli [portfolio.omidtavassoli.dev](https://portfolio.omidtavassoli.dev) **

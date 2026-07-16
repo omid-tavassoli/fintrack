@@ -1,0 +1,162 @@
+<svg width="900" height="620" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" fill="#0d1017" rx="16"/>
+
+  <!-- Title -->
+  <text x="450" y="42" text-anchor="middle" font-size="18" font-weight="700" fill="#f0f0ee" letter-spacing="-0.3">FinTrack — System Architecture &amp; Data Flow</text>
+  <text x="450" y="62" text-anchor="middle" font-size="12" fill="#555" font-family="'Courier New', monospace">Spring Boot 3 · PostgreSQL · Gemini 2.5 Flash · Next.js 14</text>
+
+  <!-- ═══ ROW 1: DATABASE ═══ -->
+  <rect x="40" y="84" width="820" height="96" rx="10" fill="#0a1a0e" stroke="#1d4025" stroke-width="1.2"/>
+  <text x="60" y="104" font-size="11" font-weight="600" fill="#4ade80" font-family="'Courier New', monospace">PostgreSQL — Data Layer · Flyway Migrations</text>
+
+  <!-- DB table boxes -->
+  <rect x="60" y="112" width="120" height="52" rx="6" fill="#0f2016" stroke="#2d6a3f" stroke-width="1"/>
+  <text x="120" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#86efac">users</text>
+  <text x="120" y="150" text-anchor="middle" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">id · email · password</text>
+
+  <rect x="196" y="112" width="140" height="52" rx="6" fill="#0f2016" stroke="#2d6a3f" stroke-width="1"/>
+  <text x="266" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#86efac">transactions</text>
+  <text x="266" y="150" text-anchor="middle" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">amount · hash · category</text>
+
+  <rect x="352" y="112" width="130" height="52" rx="6" fill="#0f2016" stroke="#2d6a3f" stroke-width="1"/>
+  <text x="417" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#86efac">categories</text>
+  <text x="417" y="150" text-anchor="middle" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">id · name · user_id</text>
+
+  <rect x="498" y="112" width="130" height="52" rx="6" fill="#0f2016" stroke="#2d6a3f" stroke-width="1"/>
+  <text x="563" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#86efac">budgets</text>
+  <text x="563" y="150" text-anchor="middle" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">amount · month · year</text>
+
+  <rect x="644" y="112" width="100" height="52" rx="6" fill="#0f2016" stroke="#2d6a3f" stroke-width="1"/>
+  <text x="694" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#86efac">global_rules</text>
+  <text x="694" y="150" text-anchor="middle" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">keyword · category</text>
+
+  <rect x="760" y="112" width="90" height="52" rx="6" fill="#0f2016" stroke="#2d6a3f" stroke-width="1"/>
+  <text x="805" y="133" text-anchor="middle" font-size="11" font-weight="600" fill="#86efac">user_rules</text>
+  <text x="805" y="150" text-anchor="middle" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">keyword · user</text>
+
+  <!-- Arrow DB → Backend -->
+  <line x1="450" y1="180" x2="450" y2="208" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="460" y="198" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">Spring Data JPA</text>
+
+  <!-- ═══ ROW 2: BACKEND ═══ -->
+  <rect x="40" y="208" width="820" height="140" rx="10" fill="#071220" stroke="#1e3a5f" stroke-width="1.2"/>
+  <text x="60" y="228" font-size="11" font-weight="600" fill="#60a5fa" font-family="'Courier New', monospace">Spring Boot 3 — Backend · Java 21 · port 8080</text>
+
+  <!-- Controllers box -->
+  <rect x="60" y="238" width="170" height="96" rx="6" fill="#0a1f35" stroke="#1e4d7a" stroke-width="1"/>
+  <text x="145" y="256" text-anchor="middle" font-size="11" font-weight="600" fill="#93c5fd">Controllers</text>
+  <text x="145" y="272" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">AuthController</text>
+  <text x="145" y="286" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">TransactionController</text>
+  <text x="145" y="300" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">AnalyticsController</text>
+  <text x="145" y="314" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">ChatController</text>
+
+  <!-- Services box -->
+  <rect x="248" y="238" width="200" height="96" rx="6" fill="#0a1f35" stroke="#1e4d7a" stroke-width="1"/>
+  <text x="348" y="256" text-anchor="middle" font-size="11" font-weight="600" fill="#93c5fd">Services — AI Layer</text>
+  <text x="348" y="272" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">GeminiPdfExtractor</text>
+  <text x="348" y="286" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">CategorizationService</text>
+  <text x="348" y="300" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">AnomalyDetectionService</text>
+  <text x="348" y="314" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">NlQueryService · ChatService</text>
+
+  <!-- Security box -->
+  <rect x="466" y="238" width="160" height="96" rx="6" fill="#0a1f35" stroke="#1e4d7a" stroke-width="1"/>
+  <text x="546" y="256" text-anchor="middle" font-size="11" font-weight="600" fill="#93c5fd">Security</text>
+  <text x="546" y="272" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">JWT Filter Chain</text>
+  <text x="546" y="286" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">JwtAuthFilter</text>
+  <text x="546" y="300" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">SecurityConfig</text>
+  <text x="546" y="314" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">BCrypt Password</text>
+
+  <!-- Repositories box -->
+  <rect x="644" y="238" width="210" height="96" rx="6" fill="#0a1f35" stroke="#1e4d7a" stroke-width="1"/>
+  <text x="749" y="256" text-anchor="middle" font-size="11" font-weight="600" fill="#93c5fd">Repositories</text>
+  <text x="749" y="272" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">UserRepository</text>
+  <text x="749" y="286" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">TransactionRepository</text>
+  <text x="749" y="300" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">CategoryRepository</text>
+  <text x="749" y="314" text-anchor="middle" font-size="10" fill="#60a5fa" font-family="'Courier New', monospace">BudgetRepository</text>
+
+  <!-- Arrow Backend → Nginx -->
+  <line x1="450" y1="348" x2="450" y2="376" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="460" y="366" font-size="10" fill="#4ade80" font-family="'Courier New', monospace">JSON · HTTP</text>
+
+  <!-- ═══ ROW 3: NGINX ═══ -->
+  <rect x="40" y="376" width="820" height="56" rx="10" fill="#111" stroke="#333" stroke-width="1.2"/>
+  <text x="450" y="398" text-anchor="middle" font-size="11" font-weight="600" fill="#d1d5db" font-family="'Courier New', monospace">Nginx — Reverse Proxy · SSL Termination</text>
+  <text x="450" y="416" text-anchor="middle" font-size="10" fill="#6b7280" font-family="'Courier New', monospace">/api/* → Spring Boot :8080 · /* → Next.js :3003</text>
+
+  <!-- Arrow Nginx → Frontend -->
+  <line x1="290" y1="432" x2="290" y2="460" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Arrow Nginx → Gemini -->
+  <line x1="640" y1="432" x2="640" y2="460" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)" stroke-dasharray="5 3"/>
+
+  <!-- ═══ ROW 4: FRONTEND + GEMINI ═══ -->
+  <!-- Frontend -->
+  <rect x="40" y="460" width="490" height="120" rx="10" fill="#10100a" stroke="#3a3a20" stroke-width="1.2"/>
+  <text x="60" y="480" font-size="11" font-weight="600" fill="#fde68a" font-family="'Courier New', monospace">Next.js 14 — Frontend · TypeScript · Tailwind · port 3003</text>
+
+  <rect x="60" y="490" width="90" height="72" rx="6" fill="#1a1a0a" stroke="#4a4a20" stroke-width="1"/>
+  <text x="105" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#fde68a">Dashboard</text>
+  <text x="105" y="522" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">charts</text>
+  <text x="105" y="534" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">anomalies</text>
+  <text x="105" y="546" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">stats</text>
+
+  <rect x="162" y="490" width="90" height="72" rx="6" fill="#1a1a0a" stroke="#4a4a20" stroke-width="1"/>
+  <text x="207" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#fde68a">Transactions</text>
+  <text x="207" y="522" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">table</text>
+  <text x="207" y="534" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">NL search</text>
+  <text x="207" y="546" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">edit</text>
+
+  <rect x="264" y="490" width="90" height="72" rx="6" fill="#1a1a0a" stroke="#4a4a20" stroke-width="1"/>
+  <text x="309" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#fde68a">Upload</text>
+  <text x="309" y="522" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">drag &amp; drop</text>
+  <text x="309" y="534" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">progress</text>
+  <text x="309" y="546" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">result</text>
+
+  <rect x="366" y="490" width="80" height="72" rx="6" fill="#1a1a0a" stroke="#4a4a20" stroke-width="1"/>
+  <text x="406" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#fde68a">AI Chat</text>
+  <text x="406" y="522" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">history</text>
+  <text x="406" y="534" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">context</text>
+  <text x="406" y="546" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">routing</text>
+
+  <rect x="458" y="490" width="60" height="72" rx="6" fill="#1a1a0a" stroke="#4a4a20" stroke-width="1"/>
+  <text x="488" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#fde68a">Budgets</text>
+  <text x="488" y="522" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">limits</text>
+  <text x="488" y="534" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">progress</text>
+  <text x="488" y="546" text-anchor="middle" font-size="9" fill="#ca8a04" font-family="'Courier New', monospace">bars</text>
+
+  <!-- Gemini -->
+  <rect x="550" y="460" width="310" height="120" rx="10" fill="#120a1a" stroke="#3a1f5a" stroke-width="1.2"/>
+  <text x="570" y="480" font-size="11" font-weight="600" fill="#c4b5fd" font-family="'Courier New', monospace">Gemini 2.5 Flash — Google AI API</text>
+
+  <rect x="570" y="490" width="130" height="72" rx="6" fill="#1a0f2a" stroke="#5b3a8a" stroke-width="1"/>
+  <text x="635" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#c4b5fd">PDF Extraction</text>
+  <text x="635" y="522" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="'Courier New', monospace">multimodal vision</text>
+  <text x="635" y="534" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="'Courier New', monospace">JSON output</text>
+  <text x="635" y="546" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="'Courier New', monospace">all banks supported</text>
+
+  <rect x="714" y="490" width="130" height="72" rx="6" fill="#1a0f2a" stroke="#5b3a8a" stroke-width="1"/>
+  <text x="779" y="508" text-anchor="middle" font-size="10" font-weight="600" fill="#c4b5fd">NL Query + Chat</text>
+  <text x="779" y="522" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="'Courier New', monospace">text → SQL</text>
+  <text x="779" y="534" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="'Courier New', monospace">conversation</text>
+  <text x="779" y="546" text-anchor="middle" font-size="9" fill="#a78bfa" font-family="'Courier New', monospace">DE + EN</text>
+
+  <!-- Legend -->
+  <line x1="60" y1="598" x2="100" y2="598" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="108" y="602" font-size="10" fill="#6b7280">sync data flow</text>
+  <line x1="220" y1="598" x2="260" y2="598" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="268" y="602" font-size="10" fill="#6b7280">external API call</text>
+  <line x1="380" y1="598" x2="420" y2="598" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="428" y="602" font-size="10" fill="#6b7280">HTTP / JSON</text>
+</svg>

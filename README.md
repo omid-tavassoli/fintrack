@@ -21,8 +21,6 @@
 
 ---
 
-![FinTrack Demo](frontend/public/fintrack-demo.gif)
-
 > Upload your bank statement. Get instant AI insights.
 
 **[Live Demo](https://fintrack.omidtavassoli.dev)** 
@@ -88,39 +86,8 @@ The system learns from corrections — every category override becomes a rule th
 ## Architecture
 
 <div align="center">
-
-| Layer | Technology | Role |
-|-------|-----------|------|
-| **Browser** | Next.js 14 | Frontend SPA |
-| **Reverse Proxy** | Nginx + SSL | Routing + HTTPS |
-| **Backend** | Spring Boot 3 | REST API + Business Logic |
-| **Database** | PostgreSQL + Flyway | Persistence + Migrations |
-| **AI** | Gemini 2.5 Flash | PDF Extraction + Categorization + NL Queries |
-
+  <img src="frontend/public/fintrack-architecture.svg" alt="FinTrack Architecture" width="900"/>
 </div>
-
-### Request Flow
-
-User → Nginx → Spring Boot → PostgreSQL
-↓
-Gemini 2.5 Flash
-(PDF extraction / categorization / NL queries)
-
-### AI Pipeline
-
-PDF Upload
-↓
-Gemini Vision extracts transactions as JSON
-↓
-TextNormalizer cleans raw descriptions
-↓
-Rule Cache lookup (global + user corrections)
-↓ (no match)
-Gemini Flash categorizes unknown merchants
-↓
-Z-score anomaly detection
-↓
-Stored in PostgreSQL
 
 ---
 
@@ -188,6 +155,51 @@ V6 — user_category_rules
 </td>
 </tr>
 </table>
+
+```
+fintrack/
+│
+├── backend/                          # Spring Boot 3 · Java 21
+│   └── src/main/
+│       ├── java/com/fintrack/fintrack/
+│       │   ├── controller/           # REST endpoints
+│       │   │   ├── AuthController
+│       │   │   ├── TransactionController
+│       │   │   ├── AnalyticsController
+│       │   │   ├── ChatController
+│       │   │   ├── BudgetController
+│       │   │   ├── NlQueryController
+│       │   │   └── HealthController
+│       │   ├── service/              # Business logic + AI
+│       │   │   ├── GeminiClient          ← Gemini API wrapper
+│       │   │   ├── GeminiPdfExtractor    ← PDF → structured JSON
+│       │   │   ├── CategorizationService ← rules → Gemini fallback
+│       │   │   ├── PdfIngestionService   ← upload orchestration
+│       │   │   ├── AnomalyDetectionService ← z-score detection
+│       │   │   ├── NlQueryService        ← text → SQL → answer
+│       │   │   ├── ChatService           ← conversational AI
+│       │   │   ├── AnalyticsService      ← spending analytics
+│       │   │   └── TextNormalizer        ← description cleaning
+│       │   ├── repository/           # Spring Data JPA interfaces
+│       │   ├── entity/               # JPA entities (DB tables)
+│       │   ├── dto/                  # Request/response objects
+│       │   ├── security/             # JWT filter chain
+│       │   └── exception/            # Global error handling
+│       └── resources/
+│           ├── db/migration/         # Flyway SQL migrations (V1–V6)
+│           └── application.yaml      # App configuration
+│
+└── frontend/                         # Next.js 14 · TypeScript · Tailwind
+└── src/app/
+├── (auth)/
+│   └── login/                # Login + register + demo button
+└── (app)/
+├── dashboard/            # Charts · anomalies · stats
+├── transactions/         # Table · NL search · category edit
+├── upload/               # PDF upload · ingestion result
+├── chat/                 # AI chat assistant
+└── budgets/              # Budget tracking · progress bars
+```
 
 ---
 

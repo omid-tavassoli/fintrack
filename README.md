@@ -140,5 +140,6 @@ V5 — global_category_rules<br>
 V6 — user_category_rules<br>
 
 ---
+## Author
 
-** Built by Omid Tavassoli [portfolio.omidtavassoli.dev](https://portfolio.omidtavassoli.dev) **
+**Omid Tavassoli**  [GitHub](https://github.com/omid-tavassoli) · [LinkedIn](https://www.linkedin.com/in/omid-tavassoli-b2758b307) . [portfolio](https//:portfolio.omidtavassoli.dev)
